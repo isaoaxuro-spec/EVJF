@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EVJF</title>
+  <meta name="description" content="Escape game EVJF : énigmes étape par étape avec déverrouillage final" />
+  <style>
+    :root{ --bg:#0f172a; --accent:#f472b6; --accent2:#22d3ee; --text:#e5e7eb; --muted:#9ca3af; --ok:#34d399; --err:#f87171 }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:radial-gradient(900px 300px at 10% 0%, #111827, transparent),var(--bg); color:var(--text); display:flex; align-items:center; justify-content:center; padding:20px}
+    .app{width:min(980px,96%)}
+    .card{background:linear-gradient(180deg,#071028cc,#071028cc); border-radius:18px; padding:22px; border:1px solid #172033; box-shadow:0 20px 50px rgba(2,6,23,.6)}
+    h1{margin:0 0 6px; font-size:28px}
+    p{color:var(--muted)}
+    .panel{ background:#071023; border:1px solid #182331; padding:14px; border-radius:12px }
+    .input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid #243142; background:transparent; color:var(--text)}
+    .btn{ padding:10px 14px; border-radius:12px; border:0; cursor:pointer; background:linear-gradient(180deg,#f9a8d4,#f472b6); color:#071023; font-weight:700}
+    .btn-ghost{ background:transparent; border:1px solid #243142; color:var(--text); padding:8px 10px; border-radius:10px }
+    .status{ margin-top:8px; font-size:14px }
+    .ok{ color:var(--ok)} .err{ color:var(--err)}
+    .progress{ height:10px; background:#071022; border-radius:999px; overflow:hidden; border:1px solid #12202a }
+    .bar{ height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .35s }
+    .final{ text-align:center; margin-top:14px; padding:12px; border-radius:10px; border:1px dashed #213041 }
+    .hint{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px }
+    .small{ font-size:13px; color:var(--muted) }
+    .top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap }
+    .step-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px }
+    .pill{ font-size:12px; padding:4px 8px; border:1px solid #253245; border-radius:999px; color:var(--muted) }
+
+    /* --- Bloc récap --- */
+    .recap{ margin-top:20px; padding:12px; border:1px dashed #243142; border-radius:12px; background:#0b1322 }
+    .recap h3{ margin:0 0 8px; font-size:16px; color:var(--accent2)}
+    .recap-item{ font-size:14px; margin:4px 0 }
+    .recap-item strong{ color:var(--accent) }
+
+    /* --- COMPTE À REBOURS (porte d'accès) --- */
+    .gate{
+      position:fixed; inset:0; z-index:9999;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:rgba(2,6,23,.94); backdrop-filter: blur(6px);
+      text-align:center; padding:28px;
+    }
+    .cd{ display:grid; grid-template-columns:repeat(4, minmax(70px, 1fr)); gap:12px; margin:16px 0 10px }
+    .tile{ background:#071023; border:1px solid #182331; border-radius:14px; padding:12px 10px }
+    .tile .num{ font-size:30px; font-weight:800; line-height:1 }
+    .tile .lbl{ font-size:12px; color:var(--muted); margin-top:6px; display:block }
+    .gate h2{ margin:0 0 6px }
+    .gate .small{ opacity:.9 }
+
+    /* --- PUZZLE GLISSANT (Énigme 2) --- */
+    .jigsaw-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; margin:12px auto; }
+    .jigsaw{ width:min(620px, 95%); aspect-ratio:1/1; display:grid; background:#020617; border:1px solid #243142; border-radius:12px; overflow:hidden }
+    .piece{ position:relative; user-select:none; cursor:pointer; outline:none; border:1px dashed rgba(255,255,255,.07) }
+    .piece:focus{ box-shadow:0 0 0 2px var(--accent2) inset }
+    .jigsaw-ui{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center }
+    .badge{ padding:6px 10px; border-radius:999px; border:1px solid #1f2a3a; background:#09111f; font-size:12px; color:var(--muted) }
+
+    /* --- QUIZ (Énigme 3) --- */
+    .quiz-wrap{ display:flex; flex-direction:column; gap:10px; margin-top:8px }
+    .quiz-q{ font-weight:600; color:#e5e7eb }
+    .quiz-progress{ display:flex; align-items:center; justify-content:space-between }
+    .quiz-progress .badge{ color:#cbd5e1 }
+  </style>
+</head>
+<body>
+  <!-- PORTE VERROUILLÉE PAR COMPTE À REBOURS -->
+  <div id="gate" class="gate" role="dialog" aria-modal="true" aria-label="Compte à rebours d'ouverture" style="display:none">
+    <h2>Ahah, tu y as vraiment cru ? 😈 Comme tu peux le constater je suis sadique… Il va falloir patienter ⏳.</h2>
+    <div class="cd" aria-live="polite">
+      <div class="tile"><div id="cd-days" class="num">00</div><span class="lbl">jours</span></div>
+      <div class="tile"><div id="cd-hours" class="num">00</div><span class="lbl">heures</span></div>
+      <div class="tile"><div id="cd-mins" class="num">00</div><span class="lbl">minutes</span></div>
+      <div class="tile"><div id="cd-secs" class="num">00</div><span class="lbl">secondes</span></div>
+    </div>
+    <p class="small">Le site sera accessible lorsque le compteur atteindra 0.</p>
+    <p class="small">Déverrouillage prévu le <span id="unlock-date"></span>.</p>
+  </div>
+
+  <!-- PAGE D'ACCUEIL -->
+  <div id="home" class="gate" style="display:none; flex-direction:column;">
+    <img src="Site/accueil.jpg" alt="Bienvenue EVJF" style="max-width:15%; border-radius:16px; margin-bottom:20px;"/>
+    <button id="start-btn" class="btn">Entrer dans le jeu</button>
+  </div>
+
+  <main class="app" id="app">
+    <section class="card" id="content">
+      <div class="top">
+        <div>
+          <h1>Mission : EVJF</h1>
+          <p class="small">✨ Ton objectif : Résous 5 énigmes, et le lien secret se révélera à la fin. Bonne chance et amuse-toi bien 💖 ! </p>
+        </div>
+        <div style="text-align:right">
+          <div class="progress" style="width:180px"><div id="bar" class="bar"></div></div>
+          <div class="small" style="margin-top:6px"><span id="count">0</span>/5 résolues</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px" id="story">
+        <p id="intro"></p>
+      </div>
+
+      <div id="puzzle-container"></div>
+
+      <!-- AJOUT DU RECAP -->
+      <div id="recap" class="recap" style="display:none"></div>
+
+      <div style="display:flex; gap:8px; margin-top:12px">
+        <button id="reset" class="btn-ghost">Réinitialiser</button>
+      </div>
+
+      <div id="final" class="final" style="display:none"></div>
+    </section>
+  </main>
+
+<script>
+/* -------- CONFIG -------- */
+const CONFIG = {
+  brideName: "Johanna",
+  birthDate: "19 juin",
+  trainLink: "Site/billet.pdf",
+
+  introText(){
+    return ``;
+  },
+
+  puzzles: [
+    {question: "Énigme 1 — Enigme audio", hint:"starter", answer:"carapuce", audio: "Site/Audio.mp3"},
+    {question: "Énigme 2 — Le puzzle", hint:"maison", answer:"serpentard", img:"Site/etape2.png"},
+    {
+      question: "Énigme 3 — Le grand quiz",
+      hint:"Cérémonie",
+      answer:"Mariage", // ⚠️ Réponse FINALE à saisir à la fin
+      // ✨ Liste de questions du quiz (à personnaliser librement)
+      quiz: [
+        { q: "Symbole porté à l'annulaire pour sceller l'union ?", a: "alliance" },
+        { q: "Lieu où l'officier d'état civil prononce l'union ?", a: "mairie" },
+        { q: "Quelle est la couleur traditionnelle de la robe de mariée dans de nombreux pays occidentaux ?", a: "Blanche" },
+        { q: "attention les deux prochaines sont difficile tu peux triché xD c'est juste pour le délire Quel roi de France a épousé Anne de Bretagne, permettant l’union de la Bretagne au royaume de France ?", a: "Louis XII" },
+        { q: "Quelle coutume ancienne veut que le marié place la bague à l’annulaire gauche, car une veine était censée relier ce doigt directement au cœur ?", a: "vena amoris" }
+      ]
+    },
+    {question: "Énigme 4 — 869243", hint:"téléphone", answer:"voyage"},
+    {
+      question: "Énigme finale — #FF0000 / #00BFFF / #32CD32 / #FFFF00 / #FF8C00 / #800080 / #FF00FF / #00BFFF",
+      hint:"code = couleur",
+      answer:"Victoire",
+      img: "Site/etape5.png"
+    }
+  ]
+};
+
+/* -------- PORTE AVEC COMPTE À REBOURS -------- */
+const GATE = {
+  enabled: true,
+  // ⚠️ mets ici une date FUTURE (Europe/Paris)
+  lockUntilISO: "2025-09-11T08:00:00+02:00",
+  durationSeconds: 0,
+  storageKey: "evjf_gate_until"
+};
+
+/* -------- STATE -------- */
+let current = 0;
+let solved = Array(CONFIG.puzzles.length).fill(false);
+let answers = Array(CONFIG.puzzles.length).fill(""); // <-- stockage réponses (uniquement réponses d'énigme, pas celles du quiz)
+
+/* -------- INIT -------- */
+window.addEventListener('DOMContentLoaded',()=>{
+  initGate();
+  document.getElementById('intro').innerHTML = CONFIG.introText();
+  renderCurrentPuzzle();
+  document.getElementById('reset').addEventListener('click', resetAll);
+  updateProgress();
+});
+
+/* -------- GATE LOGIC -------- */
+function initGate(){
+  if(!GATE.enabled) return;
+  const gate = document.getElementById('gate');
+  const app  = document.getElementById('app');
+  let untilMs = null;
+
+  if(GATE.lockUntilISO){
+    untilMs = new Date(GATE.lockUntilISO).getTime();
+  } else if (GATE.durationSeconds > 0){
+    const saved = localStorage.getItem(GATE.storageKey);
+    if(saved){
+      untilMs = parseInt(saved,10);
+    } else {
+      untilMs = Date.now() + (GATE.durationSeconds * 1000);
+      localStorage.setItem(GATE.storageKey, String(untilMs));
+    }
+  } else {
+    return;
+  }
+
+  // Si déjà passé, on ouvre l'accueil
+  if(Date.now() >= untilMs){
+    cleanupGate();
+    return;
+  }
+
+  // Affiche la porte et fige l'app
+  gate.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  app.setAttribute('inert','');
+  app.setAttribute('aria-hidden','true');
+
+  // ✅ correction ici: tag 'fr-FR' (sans virgule)
+  document.getElementById('unlock-date').textContent =
+    new Date(untilMs).toLocaleString('fr-FR', { dateStyle:'full', timeStyle:'short' });
+
+  const $d = document.getElementById('cd-days');
+  const $h = document.getElementById('cd-hours');
+  const $m = document.getElementById('cd-mins');
+  const $s = document.getElementById('cd-secs');
+
+  const tick = () => {
+    const now = Date.now();
+    let diff = Math.max(0, untilMs - now);
+
+    const days  = Math.floor(diff / (24*60*60*1000)); diff -= days*(24*60*60*1000);
+    const hours = Math.floor(diff / (60*60*1000));    diff -= hours*(60*60*1000);
+    const mins  = Math.floor(diff / (60*1000));       diff -= mins*(60*1000);
+    const secs  = Math.floor(diff / 1000);
+
+    $d.textContent = String(days).padStart(2,'0');
+    $h.textContent = String(hours).padStart(2,'0');
+    $m.textContent = String(mins).padStart(2,'0');
+    $s.textContent = String(secs).padStart(2,'0');
+
+    if(untilMs - now <= 0){
+      clearInterval(intervalId);
+      cleanupGate();
+    }
+  };
+
+  tick();
+  const intervalId = setInterval(tick, 1000);
+
+  function cleanupGate(){
+    gate.style.display = 'none';
+    document.body.style.overflow = '';
+    app.removeAttribute('inert');
+    app.removeAttribute('aria-hidden');
+    try{ localStorage.removeItem(GATE.storageKey); }catch(e){}
+    // afficher la page d'accueil et masquer l'app jusqu'au clic
+    document.getElementById('home').style.display = 'flex';
+    app.style.display = 'none';
+  }
+}
+
+/* -------- PUZZLE GLISSANT UTILITAIRE -------- */
+function buildJigsaw(url, size = 2){
+  const wrap = document.createElement('div');
+  wrap.className = 'jigsaw-wrap';
+
+  const ui = document.createElement('div');
+  ui.className = 'jigsaw-ui';
+  const movesEl = document.createElement('span');
+  movesEl.className = 'badge';
+  movesEl.textContent = 'Coups : 0';
+  const tipEl = document.createElement('span');
+  tipEl.className = 'badge';
+  tipEl.textContent = `${size}×${size} — Clique deux cases pour les échanger`;
+  ui.append(movesEl, tipEl);
+
+  const grid = document.createElement('div');
+  grid.className = 'jigsaw';
+  grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+  grid.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+
+  // état
+  const total = size*size;
+  let order = Array.from({length: total}, (_,i)=> i); // 0..n-1
+  let firstIdx = null;
+  let moves = 0;
+
+  // helpers
+  const xyOf = (i) => [Math.floor(i/size), i%size];
+  const bgPos = (i) => {
+    const [r,c] = xyOf(i);
+    const x = (c/(size-1))*100;
+    const y = (r/(size-1))*100;
+    return `${x}% ${y}%`;
+  };
+
+  function draw(){
+    grid.innerHTML = '';
+    order.forEach((origIndex, idx)=>{
+      const cell = document.createElement('button');
+      cell.className = 'piece';
+      cell.setAttribute('aria-label', `Pièce ${idx+1}`);
+      cell.style.backgroundImage = `url('${url}')`;
+      cell.style.backgroundSize = `${size*100}% ${size*100}%`;
+      cell.style.backgroundPosition = bgPos(origIndex);
+      cell.addEventListener('click', ()=> select(idx));
+      grid.appendChild(cell);
+    });
+    movesEl.textContent = `Coups : ${moves}`;
+  }
+
+  function shuffle(){
+    // mélange par Fisher-Yates
+    for(let i=order.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    // éviter l'état déjà résolu
+    if(isSolved()) shuffle();
+    moves = 0; firstIdx = null; draw();
+  }
+
+  function select(idx){
+    if(firstIdx === null){
+      firstIdx = idx;
+      grid.children[idx].style.boxShadow = `0 0 0 2px var(--accent) inset`;
+      return;
+    }
+    if(firstIdx === idx){
+      grid.children[idx].style.boxShadow = '';
+      firstIdx = null;
+      return;
+    }
+    // swap
+    [order[firstIdx], order[idx]] = [order[idx], order[firstIdx]];
+    moves++;
+    grid.children[firstIdx].style.boxShadow = '';
+    firstIdx = null;
+    draw();
+    if(isSolved()) onSolved();
+  }
+
+  function isSolved(){
+    return order.every((v,i)=> v===i);
+  }
+
+  function onSolved(){
+    const ok = document.createElement('div');
+    ok.className = 'badge';
+    ok.style.borderColor = 'rgba(52,211,153,.4)';
+    ok.style.color = 'var(--ok)';
+    ok.textContent = 'Puzzle complété 🎉';
+    ui.appendChild(ok);
+    wrap.dispatchEvent(new CustomEvent('solved'));
+  }
+
+  // mélange automatique au montage (pas de bouton visible)
+  setTimeout(shuffle, 50);
+
+  wrap.append(ui, grid);
+  draw();
+  return wrap;
+}
+
+/* -------- LOGIQUE DU JEU -------- */
+function renderCurrentPuzzle(){
+  const wrap = document.getElementById('puzzle-container');
+  wrap.innerHTML = "";
+
+  const p = CONFIG.puzzles[current];
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+
+  const head = document.createElement('div');
+  head.className = 'step-head';
+  head.innerHTML = `<div class="pill">Étape ${current+1} / ${CONFIG.puzzles.length}</div>`;
+  panel.appendChild(head);
+
+  const q = document.createElement('p');
+  q.innerHTML = `<strong>${p.question}</strong>`;
+  panel.appendChild(q);
+
+  // 🔊 Ajout du lecteur audio si défini
+  if (p.audio) {
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.src = p.audio;
+    audio.style.display = "block";
+    audio.style.margin = "10px auto 14px";
+    panel.appendChild(audio);
+  }
+
+  // 🧩 Puzzle glissant si une image est fournie ET que c'est l'Énigme 2
+  let mustSolvePuzzle = false;
+  let jig = null;
+  if (p.img && /Énigme 2/i.test(p.question)) {
+    mustSolvePuzzle = true;
+    const helper = document.createElement('div');
+    helper.className = 'small';
+    helper.style.textAlign = 'center';
+    helper.textContent = 'Complète le puzzle pour déverrouiller la saisie de la réponse.';
+    panel.appendChild(helper);
+    jig = buildJigsaw(p.img, 2); // 20×20
+    panel.appendChild(jig);
+  } else if (p.img) {
+    const img = document.createElement('img');
+    img.src = p.img;
+    img.alt = "énigme";
+    img.style.width = "50%";
+    img.style.height = "auto";
+    img.style.display = "block";
+    img.style.margin = "10px auto 14px";
+    img.style.border = "1px solid #243142";
+    img.style.borderRadius = "10px";
+    panel.appendChild(img);
+  }
+
+  // ====== MODE QUIZ (Énigme 3) ======
+  if (p.quiz && Array.isArray(p.quiz)) {
+    const quizWrap = document.createElement('div');
+    quizWrap.className = 'quiz-wrap';
+
+    const quizState = { idx: 0 };
+
+    const progress = document.createElement('div');
+    progress.className = 'quiz-progress';
+    const left = document.createElement('span');
+    left.className = 'badge';
+    const right = document.createElement('span');
+    right.className = 'badge';
+    progress.append(left, right);
+
+    const questionEl = document.createElement('div');
+    questionEl.className = 'quiz-q';
+
+    const quizInput = document.createElement('input');
+    quizInput.className = 'input';
+    quizInput.placeholder = 'Ta réponse';
+    quizInput.setAttribute('aria-label', 'Réponse au quiz');
+
+    const quizBtn = document.createElement('button');
+    quizBtn.className = 'btn';
+    quizBtn.textContent = 'Valider la réponse';
+
+    const quizStatus = document.createElement('div');
+    quizStatus.className = 'status';
+
+    quizWrap.append(progress, questionEl, quizInput, quizBtn, quizStatus);
+    panel.appendChild(quizWrap);
+
+    const renderQuizQ = () => {
+      const total = p.quiz.length;
+      const cur = quizState.idx + 1;
+      left.textContent = `Question ${cur} / ${total}`;
+      right.textContent = 'Réponds pour continuer';
+      questionEl.textContent = p.quiz[quizState.idx].q;
+      quizInput.value = '';
+      quizStatus.textContent = '';
+      quizStatus.className = 'status';
+      quizInput.focus();
+    };
+
+    function normalize(s){ return s.trim().toUpperCase().replace(/\s+/g,' '); }
+
+    function nextOrFinal(){
+      if (quizState.idx < p.quiz.length - 1) {
+        quizState.idx++;
+        renderQuizQ();
+      } else {
+        // Toutes les questions du quiz sont bonnes → révéler la saisie FINALE
+        quizWrap.style.display = 'none';
+        showFinalAnswerUI();
+      }
+    }
+
+    const handleQuizValidate = () => {
+      const expected = normalize(p.quiz[quizState.idx].a);
+      const given = normalize(quizInput.value);
+      if (given && given === expected){
+        quizStatus.textContent = '✔ Correct !';
+        quizStatus.className = 'status ok';
+        setTimeout(nextOrFinal, 400);
+      } else {
+        quizStatus.textContent = '✖ Mauvaise réponse';
+        quizStatus.className = 'status err';
+      }
+    };
+
+    quizBtn.addEventListener('click', handleQuizValidate);
+    quizInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ handleQuizValidate(); }});
+
+    renderQuizQ();
+
+    // UI finale (réponse "Mariage")
+    function showFinalAnswerUI(){
+      const finalBox = document.createElement('div');
+      finalBox.className = 'panel';
+      finalBox.style.marginTop = '8px';
+      finalBox.innerHTML = `<div class="small">Bravo pour le quiz ! Il te reste à saisir le nom du <strong>thème</strong> du quizz :</div>`;
+
+      const finalInput = document.createElement('input');
+      finalInput.className = 'input';
+      finalInput.placeholder = 'Réponse finale';
+      finalInput.setAttribute('aria-label','Réponse finale');
+
+      const finalBtn = document.createElement('button');
+      finalBtn.className = 'btn';
+      finalBtn.textContent = (current < CONFIG.puzzles.length - 1) ? "Valider et passer à l’étape suivante" : "Valider et révéler le lien";
+
+      const st = document.createElement('div');
+      st.className = 'status';
+
+      finalBtn.addEventListener('click', ()=> validateFinal(finalInput, st));
+      finalInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ validateFinal(finalInput, st); }});
+
+      finalBox.append(finalInput, finalBtn, st);
+      panel.appendChild(finalBox);
+
+      finalInput.focus();
+    }
+
+    function validateFinal(input, st){
+      const expected = CONFIG.puzzles[current].answer.trim().toUpperCase();
+      const given = input.value.trim().toUpperCase();
+      if (given === expected){
+        st.textContent = '✔ Réponse correcte';
+        st.className = 'status ok';
+        solved[current] = true;
+        answers[current] = input.value.trim(); // ✅ On ne stocke QUE la réponse finale (pas les réponses du quiz)
+        updateProgress();
+        updateRecap();
+        if(current < CONFIG.puzzles.length - 1){
+          setTimeout(()=>{ current++; renderCurrentPuzzle(); }, 450);
+        } else {
+          revealFinal();
+        }
+      } else {
+        st.textContent = '✖ Mauvaise réponse';
+        st.className = 'status err';
+      }
+    }
+
+  } else {
+    // ====== MODE CLASSIQUE (pas de quiz) ======
+    const input = document.createElement('input');
+    input.className = 'input';
+    input.placeholder = 'Réponse';
+    input.setAttribute('aria-label','Réponse à l’énigme');
+    if(mustSolvePuzzle){ input.disabled = true; input.placeholder = '🔒 Réponse (déverrouillée après le puzzle)'; }
+    panel.appendChild(input);
+
+    const btn = document.createElement('button');
+    btn.textContent = (current < CONFIG.puzzles.length - 1) ? 'Valider et passer à l’étape suivante' : 'Valider et révéler le lien';
+    btn.className = 'btn';
+    if(mustSolvePuzzle) btn.disabled = true;
+    panel.appendChild(btn);
+
+    const st = document.createElement('div');
+    st.className = 'status';
+    panel.appendChild(st);
+
+    btn.addEventListener('click', () => check(input, st));
+    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ check(input, st);} });
+  }
+
+  const hint = document.createElement('div');
+  hint.className = 'hint';
+  const small = document.createElement('span');
+  small.className = 'small';
+  small.textContent = 'Besoin d’un coup de pouce ?';
+  const hbtn = document.createElement('button');
+  hbtn.className = 'btn-ghost';
+  hbtn.textContent = 'Indice';
+  hint.appendChild(small);
+  hint.appendChild(hbtn);
+  panel.appendChild(hint);
+
+  // quand le puzzle (énigme 2) est résolu, on déverrouille la saisie/validation
+  if(jig){
+    jig.addEventListener('solved', ()=>{
+      const input = panel.querySelector('input.input');
+      const btn   = panel.querySelector('button.btn');
+      if(input) input.disabled = false;
+      if(btn) btn.disabled = false;
+      if(input) input.placeholder = 'Réponse';
+    });
+  }
+
+  hbtn.addEventListener('click', ()=> alert(p.hint));
+
+  document.getElementById('puzzle-container').appendChild(panel);
+}
+
+function check(input, st){
+  const expected = CONFIG.puzzles[current].answer.trim().toUpperCase();
+  const given = input.value.trim().toUpperCase();
+
+  if(given === expected){
+    st.textContent = '✔ Réponse correcte';
+    st.className = 'status ok';
+    solved[current] = true;
+    answers[current] = input.value.trim(); // <-- sauvegarde réponse
+    updateProgress();
+    updateRecap(); // <-- mise à jour récap
+
+    if(current < CONFIG.puzzles.length - 1){
+      setTimeout(()=>{ current++; renderCurrentPuzzle(); }, 450);
+    } else {
+      revealFinal();
+    }
+  }else{
+    st.textContent = '✖ Mauvaise réponse';
+    st.className = 'status err';
+  }
+}
+
+function updateProgress(){
+  const done = solved.filter(Boolean).length;
+  const total = CONFIG.puzzles.length;
+  document.getElementById('bar').style.width = (done/total*100)+'%';
+  document.getElementById('count').textContent = done;
+}
+
+/* -------- RECAP -------- */
+function updateRecap(){
+  const recap = document.getElementById('recap');
+  recap.innerHTML = "<h3>Réponses validées :</h3>";
+  solved.forEach((ok,i)=>{
+    if(ok){
+      // ✅ N'affiche que la réponse FINALE de chaque énigme.
+      // Les réponses des sous-questions du quiz (énigme 3) ne sont pas stockées → donc jamais affichées ici.
+      recap.innerHTML += `<div class="recap-item">Énigme ${i+1} : <strong>${answers[i]}</strong></div>`;
+    }
+  });
+  recap.style.display = solved.some(Boolean) ? "block" : "none";
+}
+
+function revealFinal(){
+  const f = document.getElementById('final');
+  f.style.display = 'block';
+  f.innerHTML = `<p>Toutes les énigmes sont résolues ! 🎉 Bravo la team d'honneur de <strong>${CONFIG.brideName}</strong>.</p>
+                 <a href="${CONFIG.trainLink}" target="_blank" class="btn">Voir les billets</a>`;
+  document.getElementById('puzzle-container').innerHTML = '';
+}
+
+function resetAll(){
+  current = 0;
+  solved = Array(CONFIG.puzzles.length).fill(false);
+  answers = Array(CONFIG.puzzles.length).fill(""); // reset
+  updateProgress();
+  updateRecap(); // vider le récap
+  const f = document.getElementById('final');
+  f.style.display = 'none';
+  f.innerHTML = '';
+  renderCurrentPuzzle();
+}
+
+// Afficher l'app après clic sur le bouton d'entrée de la page d'accueil
+document.getElementById('start-btn').addEventListener('click', ()=>{
+  document.getElementById('home').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+});
+</script>
+</body>
+</html>
