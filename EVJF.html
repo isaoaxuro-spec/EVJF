@@ -80,7 +80,7 @@
 
   <!-- PAGE D'ACCUEIL -->
   <div id="home" class="gate" style="display:none; flex-direction:column;">
-    <img src="Site/accueil.jpg" alt="Bienvenue EVJF" style="max-width:15%; border-radius:16px; margin-bottom:20px;"/>
+    <img src="accueil.jpg" alt="Bienvenue EVJF" style="max-width:15%; border-radius:16px; margin-bottom:20px;"/>
     <button id="start-btn" class="btn">Entrer dans le jeu</button>
   </div>
 
@@ -119,15 +119,15 @@
 const CONFIG = {
   brideName: "Johanna",
   birthDate: "19 juin",
-  trainLink: "Site/billet.pdf",
+  trainLink: "billet.pdf",
 
   introText(){
     return ``;
   },
 
   puzzles: [
-    {question: "Énigme 1 — Enigme audio", hint:"starter", answer:"carapuce", audio: "Site/Audio.mp3"},
-    {question: "Énigme 2 — Le puzzle", hint:"maison", answer:"serpentard", img:"Site/etape2.png"},
+    {question: "Énigme 1 — Enigme audio", hint:"starter", answer:"carapuce", audio: "Audio.mp3"},
+    {question: "Énigme 2 — Le puzzle", hint:"maison", answer:"serpentard", img:"etape2.png"},
     {
       question: "Énigme 3 — Le grand quiz",
       hint:"Cérémonie",
@@ -146,7 +146,7 @@ const CONFIG = {
       question: "Énigme finale — #FF0000 / #00BFFF / #32CD32 / #FFFF00 / #FF8C00 / #800080 / #FF00FF / #00BFFF",
       hint:"code = couleur",
       answer:"Victoire",
-      img: "Site/etape5.png"
+      img: "etape5.png"
     }
   ]
 };
@@ -655,3 +655,4 @@ document.getElementById('start-btn').addEventListener('click', ()=>{
 </script>
 </body>
 </html>
+
