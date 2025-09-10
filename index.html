@@ -392,7 +392,7 @@ function renderCurrentPuzzle(){
     helper.style.textAlign = 'center';
     helper.textContent = 'Complète le puzzle pour déverrouiller la saisie de la réponse.';
     panel.appendChild(helper);
-    jig = buildJigsaw(p.img, 2); // 20×20
+    jig = buildJigsaw(p.img, 6); // 20×20
     panel.appendChild(jig);
   } else if (p.img) {
     const img = document.createElement('img');
@@ -655,6 +655,7 @@ document.getElementById('start-btn').addEventListener('click', ()=>{
 </script>
 </body>
 </html>
+
 
 
 
