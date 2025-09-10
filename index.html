@@ -630,7 +630,7 @@ function updateRecap(){
 function revealFinal(){
   const f = document.getElementById('final');
   f.style.display = 'block';
-  f.innerHTML = `<p>Toutes les énigmes sont résolues ! 🎉 Bravo la team d'honneur de <strong>${CONFIG.brideName}</strong>.</p>
+  f.innerHTML = `<p>Toutes les énigmes sont résolues ! 🎉 Bravo <strong>${CONFIG.brideName}</strong>.</p>
                  <a href="${CONFIG.trainLink}" target="_blank" class="btn">Voir les billets</a>`;
   document.getElementById('puzzle-container').innerHTML = '';
 }
@@ -655,5 +655,6 @@ document.getElementById('start-btn').addEventListener('click', ()=>{
 </script>
 </body>
 </html>
+
 
 
